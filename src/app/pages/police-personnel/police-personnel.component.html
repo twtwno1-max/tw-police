@@ -1,0 +1,171 @@
+<!-- Header Section -->
+<header class="header">
+  <div class="container">
+    <div class="header-content">
+      <div class="logo-section">
+        <div class="logo-icon">🏛️</div>
+        <div class="header-text">
+          <h1>台北市警察局</h1>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- Search Section -->
+<section class="search-section">
+  <div class="container">
+    <div class="search-box">
+      <div class="search-input-container">
+        <input type="text" placeholder="🔍 搜尋姓名、分局或職位..." [(ngModel)]="searchCriteria.searchTerm"
+          (input)="onSearchChange()" (focus)="showSearchSuggestions = searchCriteria.searchTerm.length > 0"
+          (blur)="hideSuggestions()" class="search-input">
+        @if (searchCriteria.searchTerm) {
+        <button (click)="clearSearch()" class="clear-btn" title="清除搜尋">
+          ✕
+        </button>
+        }
+
+        <!-- 搜尋建議 -->
+        @if (showSearchSuggestions && getFilteredSuggestions().length > 0) {
+        <div class="search-suggestions">
+          @for (suggestion of getFilteredSuggestions(); track suggestion) {
+          <div (click)="selectSuggestion(suggestion)" class="suggestion-item">
+            {{ suggestion }}
+          </div>
+          }
+        </div>
+        }
+
+      </div>
+
+      <select [(ngModel)]="searchCriteria.selectedUnit" (change)="onUnitChange()" class="unit-select">
+        <option value="">📍 選擇分局</option>
+        <option *ngFor="let unit of units$ | async" [value]="unit">{{ unit }}</option>
+      </select>
+
+      <button (click)="performSearch()" [disabled]="isLoading" class="search-btn">
+        <span *ngIf="!isLoading">搜尋</span>
+        <span *ngIf="isLoading" class="loading-spinner">🔄</span>
+      </button>
+    </div>
+
+    <!-- 搜尋結果摘要 -->
+    <div class="search-summary">
+      {{ getSearchSummary() }}
+    </div>
+  </div>
+</section>
+
+<!-- Info Section -->
+<div class="container">
+  <div class="highlight-section">
+    <div class="highlight-title">
+      📋 系統說明
+    </div>
+    <p>
+      本系統提供台北市警察局完整的人事資料供民眾查詢，包含各分局長、副局長等主管人員的學歷、經歷等詳細資訊，促進政府透明度與民主監督。
+    </p>
+  </div>
+
+
+
+  <!-- Filter Tabs -->
+  <div class="filter-tabs">
+    <div class="filter-tab" [class.active]="selectedPositionFilter === 'all'" (click)="onPositionFilterChange('all')">
+      <span>全部</span>
+    </div>
+    <div class="filter-tab" [class.active]="selectedPositionFilter === '局長'" (click)="onPositionFilterChange('局長')">
+      <span>局長</span>
+    </div>
+    <div class="filter-tab" [class.active]="selectedPositionFilter === '副局長'" (click)="onPositionFilterChange('副局長')">
+      <span>副局長</span>
+    </div>
+    <div class="filter-tab" [class.active]="selectedPositionFilter === '分局長'" (click)="onPositionFilterChange('分局長')">
+      <span>分局長</span>
+    </div>
+    <div class="filter-tab" [class.active]="selectedPositionFilter === '副分局長'" (click)="onPositionFilterChange('副分局長')">
+      <span>副分局長</span>
+    </div>
+  </div>
+
+  <!-- Loading Indicator -->
+  <div *ngIf="isLoading" class="loading-container">
+    <div class="loading-spinner-large">🔄</div>
+    <p>搜尋中...</p>
+  </div>
+
+  <!-- Personnel Grid -->
+  <div class="personnel-grid" [class.loading]="isLoading">
+    <div *ngFor="let officer of filteredOfficers$ | async; trackBy: trackByOfficer; let i = index"
+      class="personnel-card" [style.animation-delay]="(i * 0.1) + 's'">
+
+      <!-- Card Header -->
+      <div class="card-header">
+        <div class="photo-section">
+          <div class="photo-container">
+            <img *ngIf="officer.photoUrl; else photoPlaceholder" [src]="officer.photoUrl" [alt]="officer.name + '照片'"
+              class="officer-photo" loading="lazy">
+            <ng-template #photoPlaceholder>
+              <div class="photo-placeholder">
+                {{ officer.position.includes('女') ? '👩‍💼' : '👨‍💼' }}
+              </div>
+            </ng-template>
+          </div>
+          <div class="basic-info">
+            <h3 style="color: var(--primary-color);">{{ officer.name }}</h3>
+            <div class="position">{{ officer.position }}</div>
+            <div class="unit">{{ officer.unit }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card Body -->
+      <div class="card-body">
+        <!-- Education Section -->
+        <div class="info-section" *ngIf="officer.education && officer.education.length > 0">
+          <h4>學歷</h4>
+          <ul>
+            <li *ngFor="let edu of getEducationDisplay(officer.education)">{{ edu }}</li>
+          </ul>
+        </div>
+
+        <!-- Experience Section -->
+        <div class="info-section" *ngIf="officer.experience && officer.experience.length > 0">
+          <h4>重要經歷</h4>
+          <ul>
+            <li *ngFor="let exp of getExperienceDisplay(officer.experience)">{{ exp }}</li>
+          </ul>
+        </div>
+
+        <!-- Appointment Date -->
+        <div class="appointment-date">
+          任職日期：{{ formatAppointmentDate(officer.appointmentDate) }}
+        </div>
+
+        <!-- Reference Link -->
+        <div class="ref-link" *ngIf="officer.refUrl">
+          <a [href]="officer.refUrl" target="_blank" rel="noopener noreferrer">
+            查看官方資料 ↗
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- No Results Message -->
+  <div *ngIf="(filteredOfficers$ | async)?.length === 0" class="no-results">
+    <div class="no-results-icon">🔍</div>
+    <h3>找不到符合條件的人員</h3>
+    <p>請嘗試調整搜尋條件或篩選器</p>
+  </div>
+</div>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="container">
+    <p>&copy; 2024 台北市警察局人事查詢系統 | 資料來源：臺北市政府警察局官方網站</p>
+    <p>本系統旨在提供公開透明的政府資訊，促進民主監督</p>
+  </div>
+</footer>
